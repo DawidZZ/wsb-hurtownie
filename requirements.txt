@@ -1,0 +1,6 @@
+pandas
+numpy
+tqdm
+pymssql
+sqlalchemy
+python-dotenv

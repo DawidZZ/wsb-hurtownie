@@ -1,0 +1,44 @@
+services:
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: hurtownie-mssql
+    env_file:
+      - .env
+    environment:
+      - ACCEPT_EULA=Y
+    ports:
+      - "1433:1433"
+    volumes:
+      - mssql_data:/var/opt/mssql
+      - ./scripts:/scripts
+    networks:
+      - hurtownie_network
+    healthcheck:
+      test: ["CMD-SHELL", "bash /scripts/healthcheck.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 60s
+
+  mssql-init:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: hurtownie-mssql-init
+    env_file:
+      - .env
+    volumes:
+      - ./scripts:/scripts
+    networks:
+      - hurtownie_network
+    depends_on:
+      mssql:
+        condition: service_healthy
+    command: /bin/bash /scripts/entrypoint-init.sh
+    restart: "no"
+
+volumes:
+  mssql_data:
+    driver: local
+
+networks:
+  hurtownie_network:
+    driver: bridge
