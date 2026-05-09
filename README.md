@@ -51,24 +51,11 @@ venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 ```
 
-> Na Windows może być konieczne: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`
-
----
-
-### Uwagi dla Windows
-
-`pymssql` wymaga biblioteki `FreeTDS`. Na Windows jest dostarczana jako wheel — instalacja przez pip powinna działać bez dodatkowych kroków.
-
-Jeśli `pip install pymssql` zawiedzie, zainstaluj wersję z prebuilt wheel:
-```
-pip install pymssql --only-binary=:all:
-```
-
-Docker Desktop na Windows wymaga WSL 2. Upewnij się że WSL 2 jest skonfigurowany przed uruchomieniem kontenerów.
-
 ---
 
 ## 2. Uruchomienie bazy danych
+
+W terminalu, w folderze projektu:
 
 ```bash
 docker compose up -d
@@ -128,3 +115,45 @@ python check_data.py
 |------|---|
 | delta (domyślny) | Doładowanie nowych danych bez utraty istniejących |
 | `--full-refresh` | Czysty reload — szybszy, usuwa wszystkie dane i ładuje od nowa |
+
+---
+
+## 4. Dane testowe
+
+W katalogu `data/test/` znajdują się dwa małe pliki CSV do weryfikacji poprawności pipeline'u bez potrzeby ładowania pełnych danych produkcyjnych (~50 MB / rok).
+
+| Plik | Rok | Zawartość |
+|------|-----|-----------|
+| `StormEvents_details-ftp_v1.0_d2029_c20260101.csv` | 2029 | 10 zdarzeń (różne typy, stany, wartości uszkodzeń) + 1 duplikat event_id do testu deduplikacji |
+| `StormEvents_details-ftp_v1.0_d2028_c20260101.csv` | 2028 | 5 nowych zdarzeń + 3 rekordy z event_id identycznymi jak w 2029 (do testu delta) |
+
+### Test podstawowy (transformacja + load):
+
+```bash
+python noaa_etl_cleaning.py --data-dir data/test --full-refresh
+```
+
+Oczekiwany wynik: `10 zdarzeń` w `fact_event` (duplikat odfiltrowany przez deduplikację).
+
+### Test delta (dwa kroki):
+
+```bash
+# Krok 1: załaduj rok 2029 jako bazę
+python noaa_etl_cleaning.py --data-dir data/test --full-refresh --years 2029-2029
+
+# Krok 2: delta-load rok 2028
+python noaa_etl_cleaning.py --data-dir data/test --years 2028-2028
+```
+
+Oczekiwane logi po kroku 2:
+```
+▶ fact_event przed delta:           10 wierszy
+▶ fact_event po delta:              15 wierszy
+✔ DELTA:        +5 nowych wierszy  (10 już istniało → pominięto)
+```
+
+### Tylko transformacja (bez DB):
+
+```bash
+python noaa_etl_cleaning.py --data-dir data/test --skip-load
+```

@@ -1,4 +1,5 @@
-data/
+data/storm_events/
 __pycache__/
 venv/
 etl/__pycache__/
+data/etl_cleaning.log

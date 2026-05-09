@@ -162,7 +162,7 @@ END
 
 -- Deduplikacja event_id (ten sam event może wystąpić w wielu plikach CSV)
 -- ROW_NUMBER() PARTITION BY event_id — wybieramy jedną wersję per event
-WITH ranked AS (
+;WITH ranked AS (
     SELECT
         event_id, episode_id, source_event_id,
         begin_date, end_date, begin_time, end_time, duration_minutes, magnitude,

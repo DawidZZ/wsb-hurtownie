@@ -24,6 +24,7 @@ from tqdm.contrib.logging import logging_redirect_tqdm
 
 from etl.extract import stream_events, count_event_files, load_reference_data
 from etl.transform import transform_events, enrich_with_demographics, validate, build_staging_frames
+from sqlalchemy import text
 from etl.load import (
     get_engine,
     run_sql_script,
@@ -83,7 +84,9 @@ def run_pipeline(
     skip_load: bool = False,
     year_range: tuple[int, int] | None = None,
     full_refresh: bool = False,
+    data_dir: Path | None = None,
 ) -> None:
+    events_dir = data_dir if data_dir is not None else RAW_EVENTS_DIR
     t_total = time.perf_counter()
     log.info("═" * 60)
     log.info("  NOAA Storm Events ETL – start")
@@ -98,7 +101,7 @@ def run_pipeline(
     log.info(f"└─ Extract: dane referencyjne ({time.perf_counter() - t0:.1f}s)")
 
     # 2. Przygotowanie kontenerów
-    n_files   = count_event_files(RAW_EVENTS_DIR, year_range=year_range)
+    n_files   = count_event_files(events_dir, year_range=year_range)
     dim_parts: dict[str, list[pd.DataFrame]] = {t: [] for t in _DIM_TABLES}
     seen_ids:  set[int] = set()
     n_clean = n_rejects = 0
@@ -124,7 +127,7 @@ def run_pipeline(
 
     with logging_redirect_tqdm():
         bar = tqdm(
-            stream_events(RAW_EVENTS_DIR, year_range=year_range),
+            stream_events(events_dir, year_range=year_range),
             total=n_files,
             desc="  ETL",
             unit="rok",
@@ -207,7 +210,23 @@ def run_pipeline(
         if dw_load_script.exists():
             log.info(f"\n┌─ Load: {dw_load_script.name}")
             t0 = time.perf_counter()
+
+            with engine.connect() as _c:
+                rows_before = _c.execute(text("SELECT COUNT(*) FROM dbo.fact_event")).scalar() or 0
+            if not full_refresh:
+                log.info(f"  ▶ fact_event przed delta:   {rows_before:>10,} wierszy")
+
             run_sql_script(dw_load_script, engine)
+
+            with engine.connect() as _c:
+                rows_after = _c.execute(text("SELECT COUNT(*) FROM dbo.fact_event")).scalar() or 0
+            delta_rows = rows_after - rows_before
+            if full_refresh:
+                log.info(f"  ✔ FULL REFRESH: {rows_after:,} wierszy załadowanych")
+            else:
+                log.info(f"  ▶ fact_event po delta:      {rows_after:>10,} wierszy")
+                log.info(f"  ✔ DELTA:        +{delta_rows:,} nowych wierszy  ({rows_before:,} już istniało → pominięto)")
+
             log.info(f"└─ Load: {dw_load_script.name} ({time.perf_counter() - t0:.1f}s)")
         else:
             log.warning(f"Skrypt {dw_load_script} nie istnieje – pominięto ładowanie wymiarów.")
@@ -223,6 +242,12 @@ if __name__ == "__main__":
     parser.add_argument("--csv-only",   action="store_true", help="Zapisz tylko CSV, nie ładuj do SQL Server")
     parser.add_argument("--skip-load",  action="store_true", help="Zakończ po transformacji, bez zapisu")
     parser.add_argument("--full-refresh", action="store_true", help="Resetuj wszystkie tabele docelowe i ładuj od zera (bez delta-check — szybsze)")
+    parser.add_argument(
+        "--data-dir",
+        type=str,
+        default=None,
+        help="Katalog z plikami StormEvents CSV (domyślnie: data/storm_events). Użyj data/test dla danych testowych.",
+    )
     parser.add_argument(
         "--years",
         type=str,
@@ -249,5 +274,6 @@ if __name__ == "__main__":
         except ValueError:
             parser.error(f"--years: lata muszą być liczbami, otrzymano: {args.years}")
 
-    run_pipeline(csv_only=args.csv_only, skip_load=args.skip_load, year_range=year_range, full_refresh=args.full_refresh)
+    data_dir = Path(args.data_dir) if args.data_dir else None
+    run_pipeline(csv_only=args.csv_only, skip_load=args.skip_load, year_range=year_range, full_refresh=args.full_refresh, data_dir=data_dir)
 

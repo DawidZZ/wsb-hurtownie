@@ -60,10 +60,10 @@ GO
 -- ============================================================
 
 INSERT INTO [dbo].[dim_source] (source_name)
-SELECT DISTINCT source_name
-FROM [dbo].[stg_dim_source]
-WHERE source_name IS NOT NULL AND source_name <> ''
-    AND NOT EXISTS (SELECT 1 FROM [dbo].[dim_source] d WHERE d.source_name = source_name);
+SELECT DISTINCT stg.source_name
+FROM [dbo].[stg_dim_source] AS stg
+WHERE stg.source_name IS NOT NULL AND stg.source_name <> ''
+    AND NOT EXISTS (SELECT 1 FROM [dbo].[dim_source] d WHERE d.source_name = stg.source_name);
 GO
 
 
@@ -72,26 +72,26 @@ GO
 -- ============================================================
 
 INSERT INTO [dbo].[dim_event_type] (event_type, category)
-SELECT DISTINCT event_type,
+SELECT DISTINCT stg.event_type,
     CASE
-        WHEN event_type LIKE '%Tornado%'   OR event_type LIKE '%Thunderstorm%'
-          OR event_type LIKE '%Hail%'      OR event_type LIKE '%Lightning%'
-          OR event_type LIKE '%Funnel%'    THEN 'Convective'
-        WHEN event_type LIKE '%Flood%'     OR event_type LIKE '%Rain%'
-          OR event_type LIKE '%Water%'     THEN 'Hydrological'
-        WHEN event_type LIKE '%Snow%'      OR event_type LIKE '%Ice%'
-          OR event_type LIKE '%Blizzard%'  OR event_type LIKE '%Winter%'
-          OR event_type LIKE '%Sleet%'     OR event_type LIKE '%Freeze%'
-          OR event_type LIKE '%Frost%'     THEN 'Winter'
-        WHEN event_type LIKE '%Hurricane%' OR event_type LIKE '%Tropical%'
-          OR event_type LIKE '%Typhoon%'   THEN 'Tropical'
-        WHEN event_type LIKE '%Heat%'      OR event_type LIKE '%Drought%'
-          OR event_type LIKE '%Fire%'      OR event_type LIKE '%Wildfire%' THEN 'Heat/Drought'
+        WHEN stg.event_type LIKE '%Tornado%'   OR stg.event_type LIKE '%Thunderstorm%'
+          OR stg.event_type LIKE '%Hail%'      OR stg.event_type LIKE '%Lightning%'
+          OR stg.event_type LIKE '%Funnel%'    THEN 'Convective'
+        WHEN stg.event_type LIKE '%Flood%'     OR stg.event_type LIKE '%Rain%'
+          OR stg.event_type LIKE '%Water%'     THEN 'Hydrological'
+        WHEN stg.event_type LIKE '%Snow%'      OR stg.event_type LIKE '%Ice%'
+          OR stg.event_type LIKE '%Blizzard%'  OR stg.event_type LIKE '%Winter%'
+          OR stg.event_type LIKE '%Sleet%'     OR stg.event_type LIKE '%Freeze%'
+          OR stg.event_type LIKE '%Frost%'     THEN 'Winter'
+        WHEN stg.event_type LIKE '%Hurricane%' OR stg.event_type LIKE '%Tropical%'
+          OR stg.event_type LIKE '%Typhoon%'   THEN 'Tropical'
+        WHEN stg.event_type LIKE '%Heat%'      OR stg.event_type LIKE '%Drought%'
+          OR stg.event_type LIKE '%Fire%'      OR stg.event_type LIKE '%Wildfire%' THEN 'Heat/Drought'
         ELSE 'Other'
     END
-FROM [dbo].[stg_dim_event_type]
-WHERE event_type IS NOT NULL
-    AND NOT EXISTS (SELECT 1 FROM [dbo].[dim_event_type] d WHERE d.event_type = event_type);
+FROM [dbo].[stg_dim_event_type] AS stg
+WHERE stg.event_type IS NOT NULL
+    AND NOT EXISTS (SELECT 1 FROM [dbo].[dim_event_type] d WHERE d.event_type = stg.event_type);
 GO
 
 
@@ -100,10 +100,10 @@ GO
 -- ============================================================
 
 INSERT INTO [dbo].[dim_flood_cause] (flood_cause)
-SELECT DISTINCT flood_cause
-FROM [dbo].[stg_dim_flood_cause]
-WHERE flood_cause IS NOT NULL AND flood_cause <> ''
-    AND NOT EXISTS (SELECT 1 FROM [dbo].[dim_flood_cause] d WHERE d.flood_cause = flood_cause);
+SELECT DISTINCT stg.flood_cause
+FROM [dbo].[stg_dim_flood_cause] AS stg
+WHERE stg.flood_cause IS NOT NULL AND stg.flood_cause <> ''
+    AND NOT EXISTS (SELECT 1 FROM [dbo].[dim_flood_cause] d WHERE d.flood_cause = stg.flood_cause);
 GO
 
 
@@ -112,10 +112,10 @@ GO
 -- ============================================================
 
 INSERT INTO [dbo].[dim_wfo] (wfo_code)
-SELECT DISTINCT wfo_code
-FROM [dbo].[stg_dim_wfo]
-WHERE wfo_code IS NOT NULL AND wfo_code <> ''
-    AND NOT EXISTS (SELECT 1 FROM [dbo].[dim_wfo] d WHERE d.wfo_code = wfo_code);
+SELECT DISTINCT stg.wfo_code
+FROM [dbo].[stg_dim_wfo] AS stg
+WHERE stg.wfo_code IS NOT NULL AND stg.wfo_code <> ''
+    AND NOT EXISTS (SELECT 1 FROM [dbo].[dim_wfo] d WHERE d.wfo_code = stg.wfo_code);
 GO
 
 
@@ -124,10 +124,10 @@ GO
 -- ============================================================
 
 INSERT INTO [dbo].[dim_magnitude_type] (magnitude_type)
-SELECT DISTINCT magnitude_type
-FROM [dbo].[stg_dim_magnitude_type]
-WHERE magnitude_type IS NOT NULL AND magnitude_type <> ''
-    AND NOT EXISTS (SELECT 1 FROM [dbo].[dim_magnitude_type] d WHERE d.magnitude_type = magnitude_type);
+SELECT DISTINCT stg.magnitude_type
+FROM [dbo].[stg_dim_magnitude_type] AS stg
+WHERE stg.magnitude_type IS NOT NULL AND stg.magnitude_type <> ''
+    AND NOT EXISTS (SELECT 1 FROM [dbo].[dim_magnitude_type] d WHERE d.magnitude_type = stg.magnitude_type);
 GO
 
 

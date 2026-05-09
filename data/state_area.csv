@@ -1,0 +1,53 @@
+STATE_FIPS,STATE_NAME,AREA_SQ_MI
+1,Alabama,52423
+2,Alaska,656425
+4,Arizona,114006
+5,Arkansas,53182
+6,California,163707
+8,Colorado,104100
+9,Connecticut,5544
+10,Delaware,1954
+12,Florida,65758
+13,Georgia,59441
+15,Hawaii,10932
+16,Idaho,83574
+17,Illinois,57918
+18,Indiana,36420
+19,Iowa,56276
+20,Kansas,82282
+21,Kentucky,40411
+22,Louisiana,51843
+23,Maine,35387
+24,Maryland,12407
+25,Massachusetts,10555
+26,Michigan,96810
+27,Minnesota,86943
+28,Mississippi,48434
+29,Missouri,69709
+30,Montana,147046
+31,Nebraska,77358
+32,Nevada,110567
+33,New Hampshire,9351
+34,New Jersey,8722
+35,New Mexico,121593
+36,New York,54475
+37,North Carolina,53821
+38,North Dakota,70704
+39,Ohio,44828
+40,Oklahoma,69903
+41,Oregon,98386
+42,Pennsylvania,46058
+44,Rhode Island,1545
+45,South Carolina,32007
+46,South Dakota,77121
+47,Tennessee,42146
+48,Texas,268601
+49,Utah,84904
+50,Vermont,9615
+51,Virginia,42769
+53,Washington,71303
+54,West Virginia,24231
+55,Wisconsin,65503
+56,Wyoming,97818
+11,District of Columbia,68
+72,Puerto Rico,3515
