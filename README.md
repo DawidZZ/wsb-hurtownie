@@ -1,0 +1,130 @@
+# NOAA Storm Events ETL
+
+## Wymagania
+
+- **Docker Desktop** (Windows/macOS) lub **Docker Engine + Compose plugin** (Linux)
+- **Python 3.10+**
+- Dane NOAA w `data/storm_events/` (pliki CSV o nazwie `StormEvents_details-ftp_v1.0_dYYYY_*.csv`)
+
+---
+
+## 1. Konfiguracja środowiska
+
+### Plik `.env`
+
+Plik `.env` jest już dołączony z domyślnymi wartościami:
+
+```env
+SA_PASSWORD=Hurtownie2026!
+MSSQL_PID=Express
+SQL_SERVER_HOST=mssql
+SQL_SERVER_PORT=1433
+SQL_SERVER_DB=hurtownie
+CHECK_SCHEMA_HOST=localhost
+```
+
+> `SQL_SERVER_HOST=mssql` jest używany wewnątrz Docker network.  
+> Skrypty Python uruchamiane na hoście łączą się przez `localhost:1433`.
+
+---
+
+### Wirtualne środowisko Python
+
+**Linux / macOS:**
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+**Windows (cmd):**
+```cmd
+python -m venv venv
+venv\Scripts\activate.bat
+pip install -r requirements.txt
+```
+
+**Windows (PowerShell):**
+```powershell
+python -m venv venv
+venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
+
+> Na Windows może być konieczne: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`
+
+---
+
+### Uwagi dla Windows
+
+`pymssql` wymaga biblioteki `FreeTDS`. Na Windows jest dostarczana jako wheel — instalacja przez pip powinna działać bez dodatkowych kroków.
+
+Jeśli `pip install pymssql` zawiedzie, zainstaluj wersję z prebuilt wheel:
+```
+pip install pymssql --only-binary=:all:
+```
+
+Docker Desktop na Windows wymaga WSL 2. Upewnij się że WSL 2 jest skonfigurowany przed uruchomieniem kontenerów.
+
+---
+
+## 2. Uruchomienie bazy danych
+
+```bash
+docker compose up -d
+```
+
+Kontener `mssql-init` automatycznie tworzy bazę danych i inicjalizuje schemat (`noaa_dw_schema.sql`). Poczekaj aż zdrowie kontenera przejdzie w `healthy` (~30–60 s):
+
+```bash
+docker compose ps
+```
+
+Sprawdzenie połączenia (opcjonalne):
+```bash
+python test_connection.py
+```
+
+---
+
+## 3. Uruchomienie ETL
+
+### Pełny load (wszystkie lata, tryb delta):
+```bash
+python noaa_etl_cleaning.py
+```
+
+### Wybrany zakres lat:
+```bash
+python noaa_etl_cleaning.py --years 2010-2015
+```
+
+### Full refresh (truncate + reload, szybszy):
+```bash
+python noaa_etl_cleaning.py --full-refresh
+python noaa_etl_cleaning.py --full-refresh --years 2010-2020
+```
+
+### Opcje diagnostyczne:
+```bash
+# Tylko CSV → staging (pomija load do hurtowni)
+python noaa_etl_cleaning.py --csv-only
+
+# Pomija load do hurtowni (tylko transform)
+python noaa_etl_cleaning.py --skip-load
+```
+
+### Weryfikacja danych po załadowaniu:
+```bash
+python check_schema.py
+python check_data.py
+```
+
+---
+
+## Tryby ładowania
+
+| Tryb | Kiedy używać |
+|------|---|
+| delta (domyślny) | Doładowanie nowych danych bez utraty istniejących |
+| `--full-refresh` | Czysty reload — szybszy, usuwa wszystkie dane i ładuje od nowa |

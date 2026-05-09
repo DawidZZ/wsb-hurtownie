@@ -36,6 +36,19 @@ STAGING_TABLES = [
     "stg_fact_event",
 ]
 
+# Tabele docelowe — dla --full-refresh mode
+FINAL_TABLES = [
+    "fact_event",
+    "etl_delta_log",
+    "dim_location",
+    "dim_event_type",
+    "dim_flood_cause",
+    "dim_source",
+    "dim_wfo",
+    "dim_magnitude_type",
+    "dim_time",
+]
+
 
 def get_engine() -> Engine:
     host = os.getenv("CHECK_SCHEMA_HOST", os.getenv("SQL_SERVER_HOST", "localhost"))
@@ -54,6 +67,38 @@ def truncate_all_staging(engine: Engine | None = None) -> None:
         for table in STAGING_TABLES:
             conn.execute(text(f"TRUNCATE TABLE dbo.{table}"))
     log.info(f"TRUNCATE: {len(STAGING_TABLES)} tabel stagingowych wyczyszczonych")
+
+
+def truncate_all_final_tables(engine: Engine | None = None) -> None:
+    """TRUNCATE wszystkich tabel docelowych (dim_*, fact_event) — dla full refresh.
+    
+    Resets IDENTITY seeds do 0 aby ID były od 1 — używane tylko w --full-refresh mode.
+    """
+    if engine is None:
+        engine = get_engine()
+
+    # fact_event i etl_delta_log nie mają FK do nich wskazujących → TRUNCATE OK
+    truncatable = ["fact_event", "etl_delta_log"]
+    # dim_* są referencjowane przez fact_event → TRUNCATE zabroniwy nawet gdy fact pusta
+    # DELETE FROM działa bo SQL Server sprawdza tylko czy są wiersze referujące (a fact jest już pusta)
+    delete_only = ["dim_location", "dim_event_type", "dim_flood_cause",
+                   "dim_source", "dim_wfo", "dim_magnitude_type", "dim_time"]
+
+    with engine.begin() as conn:
+        for table in truncatable:
+            conn.execute(text(f"TRUNCATE TABLE dbo.{table}"))
+            log.debug(f"  TRUNCATE: {table}")
+        for table in delete_only:
+            conn.execute(text(f"DELETE FROM dbo.{table}"))
+            log.debug(f"  DELETE FROM: {table}")
+
+    # Reset IDENTITY seeds
+    with engine.begin() as conn:
+        for table in ["dim_time", "dim_location", "dim_event_type", "dim_flood_cause",
+                      "dim_source", "dim_wfo", "dim_magnitude_type", "fact_event"]:
+            conn.execute(text(f"DBCC CHECKIDENT ('dbo.{table}', RESEED, 0)"))
+
+    log.info(f"TRUNCATE/DELETE + IDENTITY RESET: {len(FINAL_TABLES)} tabel docelowych wyczyszczonych")
 
 
 def execute_bulk_insert(

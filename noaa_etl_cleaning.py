@@ -29,6 +29,7 @@ from etl.load import (
     run_sql_script,
     save_csv_backup,
     truncate_all_staging,
+    truncate_all_final_tables,
     append_to_table,
     load_dim_staging,
     STAGING_TABLES,
@@ -81,6 +82,7 @@ def run_pipeline(
     csv_only: bool = False,
     skip_load: bool = False,
     year_range: tuple[int, int] | None = None,
+    full_refresh: bool = False,
 ) -> None:
     t_total = time.perf_counter()
     log.info("═" * 60)
@@ -106,9 +108,15 @@ def run_pipeline(
 
     # 3. DB: TRUNCATE przed pętlą
     engine = None
+    dw_load_script = Path("scripts/noaa_dw_load.sql")
     if not csv_only and not skip_load:
         engine = get_engine()
-        truncate_all_staging(engine)
+        if full_refresh:
+            truncate_all_final_tables(engine)
+            dw_load_script = Path("scripts/noaa_dw_load_full_refresh.sql")
+        else:
+            truncate_all_staging(engine)
+            dw_load_script = Path("scripts/noaa_dw_load.sql")
 
     # 4. Pętla strumieniowa po plikach
     log.info(f"\n┌─ Streaming {n_files} plików NOAA")
@@ -196,13 +204,13 @@ def run_pipeline(
         save_csv_backup(final_dims, CSV_BACKUP_DIR)
     else:
         load_dim_staging(final_dims, engine)
-        if DW_LOAD_SCRIPT.exists():
-            log.info(f"\n┌─ Load: {DW_LOAD_SCRIPT.name}")
+        if dw_load_script.exists():
+            log.info(f"\n┌─ Load: {dw_load_script.name}")
             t0 = time.perf_counter()
-            run_sql_script(DW_LOAD_SCRIPT, engine)
-            log.info(f"└─ Load: {DW_LOAD_SCRIPT.name} ({time.perf_counter() - t0:.1f}s)")
+            run_sql_script(dw_load_script, engine)
+            log.info(f"└─ Load: {dw_load_script.name} ({time.perf_counter() - t0:.1f}s)")
         else:
-            log.warning(f"Skrypt {DW_LOAD_SCRIPT} nie istnieje – pominięto ładowanie wymiarów.")
+            log.warning(f"Skrypt {dw_load_script} nie istnieje – pominięto ładowanie wymiarów.")
 
     total = time.perf_counter() - t_total
     log.info(f"\n{'═' * 60}")
@@ -214,6 +222,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="NOAA Storm Events ETL pipeline")
     parser.add_argument("--csv-only",   action="store_true", help="Zapisz tylko CSV, nie ładuj do SQL Server")
     parser.add_argument("--skip-load",  action="store_true", help="Zakończ po transformacji, bez zapisu")
+    parser.add_argument("--full-refresh", action="store_true", help="Resetuj wszystkie tabele docelowe i ładuj od zera (bez delta-check — szybsze)")
     parser.add_argument(
         "--years",
         type=str,
@@ -240,5 +249,5 @@ if __name__ == "__main__":
         except ValueError:
             parser.error(f"--years: lata muszą być liczbami, otrzymano: {args.years}")
 
-    run_pipeline(csv_only=args.csv_only, skip_load=args.skip_load, year_range=year_range)
+    run_pipeline(csv_only=args.csv_only, skip_load=args.skip_load, year_range=year_range, full_refresh=args.full_refresh)
 
